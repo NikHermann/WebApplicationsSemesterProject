@@ -1,0 +1,94 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String           @id @default(cuid())
+  name         String
+  email        String           @unique
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  plans        WorkoutPlan[]
+  sessions     WorkoutSession[]
+}
+
+model Exercise {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  muscleGroup   MuscleGroup
+  equipment     String?
+  description   String?
+  planExercises PlanExercise[]
+  workoutSets   WorkoutSet[]
+}
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  LEGS
+  SHOULDERS
+  ARMS
+  CORE
+}
+
+model WorkoutPlan {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises   PlanExercise[]
+  sessions    WorkoutSession[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([userId])
+}
+
+model PlanExercise {
+  id         String      @id @default(cuid())
+  planId     String
+  exerciseId String
+  position   Int
+  targetSets Int         @default(3)
+  targetReps Int         @default(10)
+  plan       WorkoutPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  exercise   Exercise    @relation(fields: [exerciseId], references: [id])
+
+  @@unique([planId, position])
+  @@index([exerciseId])
+}
+
+model WorkoutSession {
+  id         String       @id @default(cuid())
+  userId     String
+  planId     String?
+  startedAt  DateTime     @default(now())
+  finishedAt DateTime?
+  notes      String?
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan       WorkoutPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  sets       WorkoutSet[]
+
+  @@index([userId, startedAt])
+}
+
+model WorkoutSet {
+  id         String         @id @default(cuid())
+  sessionId  String
+  exerciseId String
+  setNumber  Int
+  weightKg   Decimal        @db.Decimal(6, 2)
+  reps       Int
+  session    WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise   Exercise       @relation(fields: [exerciseId], references: [id])
+
+  @@unique([sessionId, exerciseId, setNumber])
+  @@index([exerciseId])
+}
